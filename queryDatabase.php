@@ -15,7 +15,9 @@ class queryDb {
      */
     public function __construct ($conn) {
         $this->conn = $conn;
-        $this->statement = false;
+        $this->sql = "";
+        $this->statement = false;        
+        $this->prepared = false;
         return $this;
     }
 
@@ -24,9 +26,34 @@ class queryDb {
      * @param String $sql
      * @return Object prepared statement - PDO
      */
-    public function prepareStatement ($sql) {        
-        $this->statement =  $this->conn->prepare($sql);        
+    public function prepareStatement () {  
+        if (!$this->prepared) {
+            $this->statement =  $this->conn->prepare($this->sql);                        
+            $this->prepared = true;            
+        }        
         return $this->statement;
+    }
+
+    /**
+     * check type
+     * @param Any
+     * @return 
+     * throws Exceptions
+     */
+    public function checkTypes ($params) {
+
+        $type = gettype($params);
+
+        /**
+         * extend further in the future
+         */
+        switch ($type) {
+            case "integer":
+                $pdoType = PDO::PARAM_INT;
+                return $pdoType;
+            break;
+        }
+
     }
 
     /**
@@ -34,46 +61,48 @@ class queryDb {
      * to prepared statement
      * @param Array values with respecting order of '?' marks
      */
-    public function bindValue($params) {
-        for ($i = 0; $i = count($params); $i++) {
-            if ($params[$i]['type'] !== gettype($params[$i]['data'])) {
-                throw new Exception("Invalid_Type");
-            }
-            /**
-             * extend further in the future
-             */
-            switch ($params[$i]['type']) {
-                case "integer":
-                    $pdoType = PDO::PARAM_INT;
-                    break;
-            }
-            $this->statement->bindValue($i, $params[$i]['data'], $pdoType);
-        }
+    public function bindValue($params) {                
+        for ($i = 0; $i < count($params); $i++) {            
+            $pdoType = $this->checkTypes($params[$i]);                                    
+            $this->statement->bindValue($i+1, $params[$i], $pdoType);            
+        }        
     }
 
     /**
      * execute select statements
-     * @param Array $params
+     * @param Object,Array $params
      * @return Array,Object,Boolean
      */
-    public function selectData ($params) { 
-        echo json_encode($this->statement->execute((array)$params));         
-        $this->statement->execute($params);
+    public function selectData ($params) {
+
+        /**
+         * bind values to prepared statements
+         * if explicitly stated in $params
+         */
+        if (isset($params->bindValue) && $params->bindValue) {                                                            
+            $this->bindValue($params->data);                       
+            $this->statement->execute();            
+        }
+        else {            
+            $this->statement->execute((array)$params->data);
+        }
         return $this->fetchData();       
     }
 
+
+    /**
+     * execute insert statements
+     * and returns affected rows
+     * @param Object,Array
+     * @return Boolean
+     */
     public function insertData ($params) {
         $result = $this->statement->execute();
     }
 
-    public function updateData ($params) {        
-        $this->statement->execute();
-    }
-
-    public function fetchData () {
-        echo json_encode($this->statement);
-        $this->results = $this->statement->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode($this->results);        
+    
+    public function fetchData () {        
+        $this->results = $this->statement->fetchAll(PDO::FETCH_ASSOC);                            
         return $this->results;        
     }
 
@@ -85,31 +114,22 @@ class queryDb {
      * @return Object,Array,Booelan
      * throws Exceptions
      */
-    public function executeStatement($params)  {   
-                    
-        /**
-         * prepare sql statement if not prepared yet
-         */
-        if (!$this->statement && isset($params->sql)) {            
-            $this->prepareStatement($params->sql);
-        }
+    public function executeStatement($params)  {
 
-        /**
-         * bind values to prepared statements
-         * if stated in input
-         */
-        if (isset($params->bindValue) && $params->bindValue) {            
-            $this->bindValue($params->params);
+        if($this->sql !== $params->sql) {            
+            $this->sql = $params->sql;            
+            $this->prepared = false;                      
         }
+        $this->prepareStatement();       
+
         switch ($params->action) {
-            case "select":                
-                return $this->selectData($params->data);                
+            case "select" :
+                return $this->selectData($params);
             break;
 
-            case "insert":
-                $this->insertData($params->data);
-                break;
-        }
+            case "insert" :
+            break;
+        }     
     }
 
 }
