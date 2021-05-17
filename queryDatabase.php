@@ -152,7 +152,7 @@ class QueryDb {
      * @return mixed
      * @throws \Exception
      */
-    public function selectData ($params) {
+    public function select ($params) {
         try {
             $this->setupQuery($params);
             $this->statement->execute((array)$params->data);        
@@ -173,7 +173,7 @@ class QueryDb {
      * @return integer|boolean
      * @throws \Exception
      */
-    public function insertData ($params) {
+    public function insert ($params) {
         try {
             $this->setupQuery($params);        
             $this->statement->execute((array)$params->data);        
@@ -192,7 +192,7 @@ class QueryDb {
      * @return boolean
      * @throws \Exception
      */
-    public function updateData ($params) {
+    public function update ($params) {
         try {
             $this->setupQuery($params);
             return $this->statement->execute((array)$params->data);
@@ -209,7 +209,7 @@ class QueryDb {
      * @param object $params
      * @return void
      */
-    public function deleteData ($params) {
+    public function delete ($params) {
 
     }
 
